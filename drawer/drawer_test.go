@@ -46,9 +46,9 @@ func TestShouldRaiseErrorIfNotEnoughRecipes(t *testing.T) {
 
 func TestShouldReturnGivenNumberOfRecipes(t *testing.T) {
 	dbRs := []db.Recipe{
-		db.Recipe{Name: "Recipe #1", Key: []string{"Key #1"}},
-		db.Recipe{Name: "Recipe #2", Key: []string{"Key #2"}},
-		db.Recipe{Name: "Recipe #3", Key: []string{"Key #3"}},
+		db.Recipe{Name: "Recipe #1", Tags: []string{"Key #1"}},
+		db.Recipe{Name: "Recipe #2", Tags: []string{"Key #2"}},
+		db.Recipe{Name: "Recipe #3", Tags: []string{"Key #3"}},
 	}
 	rs, err := Draw(tDb{recipes: dbRs}, 2)
 	if err != nil {

@@ -17,7 +17,10 @@ func init() {
 func main() {
 	flag.Parse()
 
-	d := db.NewDatabase()
+	d, err := db.NewDatabase()
+	if err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
 
 	rs, err := drawer.Draw(d, numOfResults)
 	if err != nil {
@@ -25,6 +28,6 @@ func main() {
 	}
 
 	for i, r := range rs {
-		log.Printf("%d: %s (%v)", (i + 1), r.Name, r.Key)
+		log.Printf("%d: %s (%v)", (i + 1), r.Name, r.Tags)
 	}
 }
