@@ -40,6 +40,12 @@ Recipe has a following database schema:
         tags: Array[string]
     }
 
+### Loading test database
+
+There is a JSON file with recipes that can be loaded into the database:
+
+    mongoimport --drop --db obiadek --collection przepisy --jsonArray < data/sample.json
+
 ## Upcoming changes
 
 * [ ] Add ingredients, generate shopping list
