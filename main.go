@@ -1,28 +1,25 @@
+// OBIADEK
+// Autor: Paweł Słomka <pslomka@pslomka.com>
+// Obiadek is a simple application that draws a given numer of recipes (dinner/lunch ideas), helping to keep your diet varied.
 package main
 
 import (
 	"flag"
 	"log"
 
-	"github.com/slomek/obiadek/db"
+	"github.com/slomek/obiadek/db/dbfactory"
 	"github.com/slomek/obiadek/drawer"
 )
-
-var numOfResults int
-
-func init() {
-	flag.IntVar(&numOfResults, "n", 5, "number of expected results")
-}
 
 func main() {
 	flag.Parse()
 
-	d, err := db.NewDatabase()
+	d, err := dbfactory.NewDatabase()
 	if err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
 
-	rs, err := drawer.Draw(d, numOfResults)
+	rs, err := drawer.Draw(d)
 	if err != nil {
 		log.Fatalf("Failed to draw recipes: %v", err)
 	}

@@ -1,14 +1,22 @@
 package drawer
 
 import (
+	"flag"
 	"fmt"
-	"github.com/slomek/obiadek/db"
 	"math/rand"
 	"time"
+
+	"github.com/slomek/obiadek/db"
 )
 
+var numOfResults int
+
+func init() {
+	flag.IntVar(&numOfResults, "n", 5, "number of expected results")
+}
+
 // Draw returns a list of suggested recipies for upcoming week.
-func Draw(d db.Db, n int) ([]db.Recipe, error) {
+func Draw(d db.Db) ([]db.Recipe, error) {
 	res := []db.Recipe{}
 
 	rs, err := d.GetAll()
@@ -17,20 +25,20 @@ func Draw(d db.Db, n int) ([]db.Recipe, error) {
 		return res, fmt.Errorf("failed to load recipes from db: %v", err)
 	}
 
-	if n < 1 {
+	if numOfResults < 1 {
 		return res, fmt.Errorf("cannot draw non-positive number of recipes")
 	}
 
 	rsCount := len(rs)
-	if rsCount < n {
-		return res, fmt.Errorf("failed to find enough recipes in the database (expected: %d, found: %d)", n, rsCount)
+	if rsCount < numOfResults {
+		return res, fmt.Errorf("failed to find enough recipes in the database (expected: %d, found: %d)", numOfResults, rsCount)
 	}
 
 	tagsUsed := make(map[string]bool)
 
 	rand.Seed(time.Now().UnixNano())
 	p := rand.Perm(rsCount)
-	for i := 0; len(res) < n && i < rsCount; i++ {
+	for i := 0; len(res) < numOfResults && i < rsCount; i++ {
 		index := p[i]
 		recipe := rs[index]
 

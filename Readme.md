@@ -25,8 +25,8 @@ By default it will draw five suggestions that have unique tags.
 You can modify that default behaviour with parameters:
 
 - `-n` (type `int`) - numer of suggestions to be drawn (default: `5`)
-- `-db` (type `string`) - MongoDB database URL (default: `localhost/obiadek`)
-- `-db-timeout` (type `time.Duration`) - timeout for database connection, useful for testing with remoteeremote db (default: `10s`)
+- `-db` (type `string`) - type of database used (default and only available now: `mongok`)
+- `-mongo-db` (type `string`) - MongoDB URL string for host and database name (default: `localhost/obiadek`)
 
 ## Recipes schema
 
