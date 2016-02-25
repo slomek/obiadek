@@ -1,3 +1,4 @@
+// Package drawer package is responsible for generating a list of uniquely-tagged dinner suggestions that are fetched from the database.
 package drawer
 
 import (

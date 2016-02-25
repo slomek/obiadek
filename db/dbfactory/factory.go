@@ -1,3 +1,4 @@
+// Package dbfactory provides an utility function to create a database intance of type provided with runtime parameters (flags).
 package dbfactory
 
 import (
@@ -5,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/slomek/obiadek/db"
+	"github.com/slomek/obiadek/db/file"
 	"github.com/slomek/obiadek/db/mongo"
 )
 
@@ -17,6 +19,8 @@ func init() {
 // NewDatabase creates a new DB instance basing on "db" flag.
 func NewDatabase() (db.Db, error) {
 	switch dbType {
+	case "file":
+		return file.NewDb()
 	case "mongo":
 		return mongo.NewDb()
 	default:

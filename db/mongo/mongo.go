@@ -1,3 +1,4 @@
+// Package mongo represents a structure and behaviour of MongoDB-based recipe database.
 package mongo
 
 import (
