@@ -8,12 +8,15 @@ import (
 	"time"
 
 	"github.com/slomek/obiadek/db"
+	"strings"
 )
 
 var numOfResults int
+var toExclude string
 
 func init() {
 	flag.IntVar(&numOfResults, "n", 5, "number of expected results")
+	flag.StringVar(&toExclude, "exclude", "", "tags that are excluded from the results")
 }
 
 // Draw returns a list of suggested recipies for upcoming week.
@@ -35,7 +38,10 @@ func Draw(d db.Db) ([]db.Recipe, error) {
 		return res, fmt.Errorf("failed to find enough recipes in the database (expected: %d, found: %d)", numOfResults, rsCount)
 	}
 
-	tagsUsed := make(map[string]bool)
+	tags := Tags{}
+
+	tagsToExclude := strings.Split(toExclude, ",")
+	tags.add(tagsToExclude)
 
 	rand.Seed(time.Now().UnixNano())
 	p := rand.Perm(rsCount)
@@ -43,28 +49,12 @@ func Draw(d db.Db) ([]db.Recipe, error) {
 		index := p[i]
 		recipe := rs[index]
 
-		if hasUsedTags(tagsUsed, recipe) {
+		if tags.hasUsedTags(recipe) {
 			continue
 		}
 		res = append(res, recipe)
-		saveTags(tagsUsed, recipe)
+		tags.add(recipe.Tags)
 	}
 
 	return res, nil
-}
-
-func hasUsedTags(tagsUsed map[string]bool, r db.Recipe) bool {
-	for _, t := range r.Tags {
-		_, alreadyIn := tagsUsed[t]
-		if alreadyIn {
-			return true
-		}
-	}
-	return false
-}
-
-func saveTags(tagsUsed map[string]bool, r db.Recipe) {
-	for _, t := range r.Tags {
-		tagsUsed[t] = true
-	}
 }
