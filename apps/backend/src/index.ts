@@ -11,10 +11,6 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
-app.get('/', (_req, res) => {
-  res.json({ status: 'ok', message: 'Obiadek API' });
-});
-
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', message: 'Obiadek API is running' });
 });
