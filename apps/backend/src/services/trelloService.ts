@@ -1,11 +1,11 @@
 import fetch from 'node-fetch';
 
 const TRELLO_API_BASE = 'https://api.trello.com/1';
-const API_KEY = process.env.TRELLO_API_KEY;
-const API_TOKEN = process.env.TRELLO_API_TOKEN;
 
 function buildTrelloUrl(path: string): string {
-  return `${TRELLO_API_BASE}${path}?key=${API_KEY}&token=${API_TOKEN}`;
+  const apiKey = process.env.TRELLO_API_KEY;
+  const apiToken = process.env.TRELLO_API_TOKEN;
+  return `${TRELLO_API_BASE}${path}?key=${apiKey}&token=${apiToken}`;
 }
 
 export async function fetchBoards() {
