@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import trelloRoutes from './routes/trello.js';
+import authRoutes from './routes/auth.js';
+import { requireAuth } from './middleware/auth.js';
 
 dotenv.config();
 
@@ -19,7 +21,8 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', message: 'Obiadek API is running' });
 });
 
-app.use('/api/trello', trelloRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/trello', requireAuth, trelloRoutes);
 
 if (process.env.NODE_ENV !== 'production') {
   app.listen(PORT, () => {
