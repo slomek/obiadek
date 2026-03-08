@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import type { TrelloCard, TrelloLabel } from '@obiadek/shared';
+import { useAuth, authFetch } from '../auth';
 
 const LABEL_COLORS: Record<string, string> = {
   green: 'bg-green-100 text-green-800',
@@ -23,19 +24,19 @@ function LabelBadge({ label }: { label: TrelloLabel }) {
   );
 }
 
-async function fetchWeeklyMeals(): Promise<TrelloCard[]> {
-  const res = await fetch('/api/trello/weekly-meals');
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error((body as { error?: string }).error ?? 'Failed to fetch weekly meals');
-  }
-  return res.json();
-}
-
 export default function DinnersPage() {
+  const { token } = useAuth();
+
   const { data: meals, isLoading, error } = useQuery({
     queryKey: ['weekly-meals'],
-    queryFn: fetchWeeklyMeals,
+    queryFn: async () => {
+      const res = await authFetch(token!, '/api/trello/weekly-meals');
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error((body as { error?: string }).error ?? 'Failed to fetch weekly meals');
+      }
+      return res.json() as Promise<TrelloCard[]>;
+    },
   });
 
   return (
