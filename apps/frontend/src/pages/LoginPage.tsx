@@ -15,6 +15,7 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
+      console.log(username, password);
       await login(username, password);
       navigate('/');
     } catch {
