@@ -10,6 +10,9 @@ router.post('/login', (req: Request, res: Response) => {
   const validPassword = process.env.AUTH_PASSWORD;
   const jwtSecret = process.env.JWT_SECRET;
 
+  console.log(username, password);
+  console.log(validUsername, validPassword, jwtSecret);
+  
   if (!validUsername || !validPassword || !jwtSecret) {
     res.status(500).json({ error: 'Auth not configured' });
     return;
