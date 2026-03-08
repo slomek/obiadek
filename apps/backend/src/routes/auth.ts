@@ -12,9 +12,9 @@ router.post('/login', (req: Request, res: Response) => {
 
   console.log(username, password);
   console.log(validUsername, validPassword, jwtSecret);
-  
+
   if (!validUsername || !validPassword || !jwtSecret) {
-    res.status(500).json({ error: 'Auth not configured' });
+    res.status(500).json({ error: `Auth not configured, it should be ${validUsername} and ${validPassword} and ${jwtSecret}` });
     return;
   }
 
