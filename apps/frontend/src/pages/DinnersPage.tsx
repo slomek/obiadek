@@ -28,6 +28,8 @@ function LabelBadge({ label }: { label: TrelloLabel }) {
 export default function DinnersPage() {
   const { token } = useAuth();
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
+  const [copyMealsStatus, setCopyMealsStatus] = useState<'idle' | 'copied' | 'error'>('idle');
+  const [selectedMealIds, setSelectedMealIds] = useState<Set<string>>(new Set());
 
   const { data: meals, isLoading, error } = useQuery({
     queryKey: ['weekly-meals'],
@@ -40,6 +42,31 @@ export default function DinnersPage() {
       return res.json() as Promise<TrelloCard[]>;
     },
   });
+
+  function toggleMealSelection(id: string) {
+    setSelectedMealIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
+  async function handleCopyMealDescriptions() {
+    try {
+      const selected = (meals ?? []).filter((m) => selectedMealIds.has(m.id));
+      const text = selected.map((m) => `## ${m.name}\n${m.desc}`).join('\n\n');
+      await navigator.clipboard.writeText(text);
+      setCopyMealsStatus('copied');
+      setTimeout(() => setCopyMealsStatus('idle'), 2000);
+    } catch {
+      setCopyMealsStatus('error');
+      setTimeout(() => setCopyMealsStatus('idle'), 2000);
+    }
+  }
 
   async function handleCopyGroceries() {
     try {
@@ -62,18 +89,35 @@ export default function DinnersPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-3xl font-bold text-gray-900">This Week's Meals</h2>
-        <button
-          onClick={handleCopyGroceries}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            copyStatus === 'copied'
-              ? 'bg-green-100 text-green-800'
-              : copyStatus === 'error'
-              ? 'bg-red-100 text-red-800'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-        >
-          {copyStatus === 'copied' ? 'Copied!' : copyStatus === 'error' ? 'Error' : 'Copy grocery list'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleCopyMealDescriptions}
+            disabled={selectedMealIds.size === 0}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              copyMealsStatus === 'copied'
+                ? 'bg-green-100 text-green-800'
+                : copyMealsStatus === 'error'
+                ? 'bg-red-100 text-red-800'
+                : selectedMealIds.size === 0
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
+            }`}
+          >
+            {copyMealsStatus === 'copied' ? 'Copied!' : copyMealsStatus === 'error' ? 'Error' : `Copy meal descriptions${selectedMealIds.size > 0 ? ` (${selectedMealIds.size})` : ''}`}
+          </button>
+          <button
+            onClick={handleCopyGroceries}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              copyStatus === 'copied'
+                ? 'bg-green-100 text-green-800'
+                : copyStatus === 'error'
+                ? 'bg-red-100 text-red-800'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            {copyStatus === 'copied' ? 'Copied!' : copyStatus === 'error' ? 'Error' : 'Copy grocery list'}
+          </button>
+        </div>
       </div>
 
       {isLoading && (
@@ -97,6 +141,12 @@ export default function DinnersPage() {
           {meals.map((meal) => (
             <li key={meal.id} className="bg-white rounded-lg shadow px-5 py-4 flex items-center justify-between gap-4">
               <div className="flex items-center gap-3 flex-wrap">
+                <input
+                  type="checkbox"
+                  checked={selectedMealIds.has(meal.id)}
+                  onChange={() => toggleMealSelection(meal.id)}
+                  className="w-4 h-4 shrink-0 accent-blue-600 cursor-pointer"
+                />
                 <span className="font-medium text-gray-900">{meal.name}</span>
                 {meal.labels.map((label) => (
                   <LabelBadge key={label.id} label={label} />
