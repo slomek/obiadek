@@ -11,6 +11,7 @@
     "dev": "concurrently \"npm:dev:*\"",
     "dev:frontend": "npm run dev --workspace=@obiadek/frontend",
     "dev:backend": "npm run dev --workspace=@obiadek/backend",
+    "cli": "npm run dev --workspace=@obiadek/cli",
     "build": "npm run build --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "type-check": "npm run type-check --workspaces --if-present",
