@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import type { TrelloCard, TrelloLabel } from '@obiadek/shared';
 import { useAuth, authFetch } from '../auth';
 
@@ -26,6 +27,7 @@ function LabelBadge({ label }: { label: TrelloLabel }) {
 
 export default function DinnersPage() {
   const { token } = useAuth();
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
 
   const { data: meals, isLoading, error } = useQuery({
     queryKey: ['weekly-meals'],
@@ -39,9 +41,40 @@ export default function DinnersPage() {
     },
   });
 
+  async function handleCopyGroceries() {
+    try {
+      const res = await authFetch(token!, '/api/trello/grocery-description');
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error((body as { error?: string }).error ?? 'Failed to fetch grocery description');
+      }
+      const { description } = await res.json() as { description: string };
+      await navigator.clipboard.writeText(description);
+      setCopyStatus('copied');
+      setTimeout(() => setCopyStatus('idle'), 2000);
+    } catch {
+      setCopyStatus('error');
+      setTimeout(() => setCopyStatus('idle'), 2000);
+    }
+  }
+
   return (
     <div>
-      <h2 className="text-3xl font-bold text-gray-900 mb-6">This Week's Meals</h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-3xl font-bold text-gray-900">This Week's Meals</h2>
+        <button
+          onClick={handleCopyGroceries}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            copyStatus === 'copied'
+              ? 'bg-green-100 text-green-800'
+              : copyStatus === 'error'
+              ? 'bg-red-100 text-red-800'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          {copyStatus === 'copied' ? 'Copied!' : copyStatus === 'error' ? 'Error' : 'Copy grocery list'}
+        </button>
+      </div>
 
       {isLoading && (
         <div className="text-gray-500">Loading meals...</div>
