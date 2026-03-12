@@ -70,13 +70,21 @@ export default function DinnersPage() {
 
   async function handleCopyGroceries() {
     try {
-      const res = await authFetch(token!, '/api/trello/grocery-description');
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error((body as { error?: string }).error ?? 'Failed to fetch grocery description');
-      }
-      const { description } = await res.json() as { description: string };
-      await navigator.clipboard.writeText(description);
+      // The fetch is wrapped in a Promise<Blob> passed to ClipboardItem so that
+      // navigator.clipboard.write() is called synchronously within the user gesture.
+      // Mobile browsers (Safari on iOS) revoke clipboard access after any await,
+      // so deferring the fetch inside the ClipboardItem keeps the gesture context alive.
+      const blobPromise = authFetch(token!, '/api/trello/grocery-description')
+        .then(async (res) => {
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            throw new Error((body as { error?: string }).error ?? 'Failed to fetch grocery description');
+          }
+          const { description } = await res.json() as { description: string };
+          return new Blob([description], { type: 'text/plain' });
+        });
+
+      await navigator.clipboard.write([new ClipboardItem({ 'text/plain': blobPromise })]);
       setCopyStatus('copied');
       setTimeout(() => setCopyStatus('idle'), 2000);
     } catch {
