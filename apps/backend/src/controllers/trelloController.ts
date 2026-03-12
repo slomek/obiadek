@@ -47,3 +47,18 @@ export async function getWeeklyMeals(_req: Request, res: Response) {
     res.status(500).json({ error: 'Failed to fetch weekly meals' });
   }
 }
+
+export async function getGroceryDescription(_req: Request, res: Response) {
+  const cardId = process.env.TRELLO_GROCERIES_CARD_ID;
+  if (!cardId) {
+    res.status(500).json({ error: 'TRELLO_GROCERIES_CARD_ID is not configured' });
+    return;
+  }
+  try {
+    const card = await trelloService.fetchCard(cardId);
+    res.json({ description: (card as { desc: string }).desc });
+  } catch (error) {
+    console.error('Error fetching grocery card:', error);
+    res.status(500).json({ error: 'Failed to fetch grocery description' });
+  }
+}
