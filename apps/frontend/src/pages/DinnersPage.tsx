@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import type { TrelloCard, TrelloLabel } from '@obiadek/shared';
+import type { TrelloCard, TrelloLabel, MealSourceCard } from '@obiadek/shared';
 import { useAuth, authFetch } from '../auth';
 
 const LABEL_COLORS: Record<string, string> = {
@@ -41,6 +41,20 @@ export default function DinnersPage() {
       }
       return res.json() as Promise<TrelloCard[]>;
     },
+  });
+
+  const { data: mealSources, isLoading: isLoadingSources, error: sourcesError } = useQuery({
+    queryKey: ['meal-sources'],
+    queryFn: async () => {
+      const res = await authFetch(token!, '/api/trello/meal-sources');
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error((body as { error?: string }).error ?? 'Failed to fetch meal sources');
+      }
+      return res.json() as Promise<MealSourceCard[]>;
+    },
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
 
   function toggleMealSelection(id: string) {
@@ -172,6 +186,52 @@ export default function DinnersPage() {
           ))}
         </ul>
       )}
+
+      <div className="mt-10">
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">Meal Sources</h2>
+
+        {isLoadingSources && (
+          <div className="text-gray-500">Loading meal sources...</div>
+        )}
+
+        {sourcesError && (
+          <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4">
+            {sourcesError.message}
+          </div>
+        )}
+
+        {mealSources && mealSources.length === 0 && (
+          <div className="bg-white rounded-lg shadow p-6 text-gray-500">
+            No meal sources configured.
+          </div>
+        )}
+
+        {mealSources && mealSources.length > 0 && (
+          <ul className="space-y-3">
+            {mealSources.map((meal) => (
+              <li key={meal.id} className="bg-white rounded-lg shadow px-5 py-4 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="inline-block text-xs font-medium px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800">
+                    {meal.listName}
+                  </span>
+                  <span className="font-medium text-gray-900">{meal.name}</span>
+                  {meal.labels.map((label) => (
+                    <LabelBadge key={label.id} label={label} />
+                  ))}
+                </div>
+                <a
+                  href={meal.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="shrink-0 text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                >
+                  Open card
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }

@@ -27,3 +27,7 @@ export interface TrelloLabel {
   name: string;
   color: string;
 }
+
+export interface MealSourceCard extends TrelloCard {
+  listName: string;
+}

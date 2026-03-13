@@ -48,6 +48,30 @@ export async function getWeeklyMeals(_req: Request, res: Response) {
   }
 }
 
+export async function getMealSources(_req: Request, res: Response) {
+  const rawIds = process.env.TRELLO_MEAL_SOURCE_LIST_IDS;
+  if (!rawIds) {
+    res.status(500).json({ error: 'TRELLO_MEAL_SOURCE_LIST_IDS is not configured' });
+    return;
+  }
+  const listIds = rawIds.split(',').map((id) => id.trim()).filter(Boolean);
+  try {
+    const results = await Promise.all(
+      listIds.map(async (listId) => {
+        const [list, cards] = await Promise.all([
+          trelloService.fetchList(listId) as Promise<{ id: string; name: string }>,
+          trelloService.fetchListCards(listId) as Promise<{ id: string; name: string; desc: string; idList: string; labels: unknown[]; due: string | null; url: string }[]>,
+        ]);
+        return cards.map((card) => ({ ...card, listName: list.name }));
+      }),
+    );
+    res.json(results.flat());
+  } catch (error) {
+    console.error('Error fetching meal sources:', error);
+    res.status(500).json({ error: 'Failed to fetch meal sources' });
+  }
+}
+
 export async function getGroceryDescription(_req: Request, res: Response) {
   const cardId = process.env.TRELLO_GROCERIES_CARD_ID;
   if (!cardId) {
