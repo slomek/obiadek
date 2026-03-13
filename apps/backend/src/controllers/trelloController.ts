@@ -72,6 +72,56 @@ export async function getMealSources(_req: Request, res: Response) {
   }
 }
 
+export async function getMealSourceLists(_req: Request, res: Response) {
+  const rawIds = process.env.TRELLO_MEAL_SOURCE_LIST_IDS;
+  if (!rawIds) {
+    res.status(500).json({ error: 'TRELLO_MEAL_SOURCE_LIST_IDS is not configured' });
+    return;
+  }
+  const listIds = rawIds.split(',').map((id) => id.trim()).filter(Boolean);
+  try {
+    const lists = await Promise.all(
+      listIds.map((listId) => trelloService.fetchList(listId) as Promise<{ id: string; name: string }>),
+    );
+    res.json(lists.map(({ id, name }) => ({ id, name })));
+  } catch (error) {
+    console.error('Error fetching meal source lists:', error);
+    res.status(500).json({ error: 'Failed to fetch meal source lists' });
+  }
+}
+
+export async function moveCardToList(req: Request, res: Response) {
+  const { cardId } = req.params;
+  const { listId } = req.body as { listId?: string };
+  if (!listId) {
+    res.status(400).json({ error: 'listId is required' });
+    return;
+  }
+  try {
+    await trelloService.moveCard(cardId, listId);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Error moving card:', error);
+    res.status(500).json({ error: 'Failed to move card' });
+  }
+}
+
+export async function moveCardToWeekly(req: Request, res: Response) {
+  const { cardId } = req.params;
+  const listId = process.env.TRELLO_WEEKLY_LIST_ID;
+  if (!listId) {
+    res.status(500).json({ error: 'TRELLO_WEEKLY_LIST_ID is not configured' });
+    return;
+  }
+  try {
+    await trelloService.moveCard(cardId, listId);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Error moving card to weekly list:', error);
+    res.status(500).json({ error: 'Failed to move card to weekly list' });
+  }
+}
+
 export async function getGroceryDescription(_req: Request, res: Response) {
   const cardId = process.env.TRELLO_GROCERIES_CARD_ID;
   if (!cardId) {
