@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import type { TrelloCard, TrelloLabel, MealSourceCard } from '@obiadek/shared';
 import { useAuth, authFetch } from '../auth';
@@ -25,11 +25,70 @@ function LabelBadge({ label }: { label: TrelloLabel }) {
   );
 }
 
+type SourceList = { id: string; name: string };
+
+interface RemoveModalProps {
+  cardName: string;
+  sourceLists: SourceList[];
+  onConfirm: (listId: string) => void;
+  onCancel: () => void;
+}
+
+function RemoveModal({ cardName, sourceLists, onConfirm, onCancel }: RemoveModalProps) {
+  const [selectedListId, setSelectedListId] = useState(sourceLists[0]?.id ?? '');
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm mx-4">
+        <h3 className="text-lg font-semibold text-gray-900 mb-1">Move meal back</h3>
+        <p className="text-sm text-gray-500 mb-4">
+          Move <span className="font-medium text-gray-700">{cardName}</span> to:
+        </p>
+        <div className="space-y-2 mb-6">
+          {sourceLists.map((list) => (
+            <label key={list.id} className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="radio"
+                name="targetList"
+                value={list.id}
+                checked={selectedListId === list.id}
+                onChange={() => setSelectedListId(list.id)}
+                className="accent-blue-600"
+              />
+              <span className="text-gray-800">{list.name}</span>
+            </label>
+          ))}
+        </div>
+        <div className="flex gap-3 justify-end">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 rounded-lg text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => onConfirm(selectedListId)}
+            disabled={!selectedListId}
+            className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-colors"
+          >
+            Move
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function DinnersPage() {
   const { token } = useAuth();
+  const queryClient = useQueryClient();
+
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
   const [copyMealsStatus, setCopyMealsStatus] = useState<'idle' | 'copied' | 'error'>('idle');
   const [selectedMealIds, setSelectedMealIds] = useState<Set<string>>(new Set());
+  const [sourceSearch, setSourceSearch] = useState('');
+  const [removeModal, setRemoveModal] = useState<{ cardId: string; cardName: string } | null>(null);
+  const [movingCardId, setMovingCardId] = useState<string | null>(null);
 
   const { data: meals, isLoading, error } = useQuery({
     queryKey: ['weekly-meals'],
@@ -57,6 +116,17 @@ export default function DinnersPage() {
     refetchOnWindowFocus: false,
   });
 
+  const { data: sourceLists } = useQuery({
+    queryKey: ['meal-source-lists'],
+    queryFn: async () => {
+      const res = await authFetch(token!, '/api/trello/meal-source-lists');
+      if (!res.ok) return [] as SourceList[];
+      return res.json() as Promise<SourceList[]>;
+    },
+    retry: 1,
+    refetchOnWindowFocus: false,
+  });
+
   function toggleMealSelection(id: string) {
     setSelectedMealIds((prev) => {
       const next = new Set(prev);
@@ -67,6 +137,42 @@ export default function DinnersPage() {
       }
       return next;
     });
+  }
+
+  async function moveCard(cardId: string, listId: string) {
+    setMovingCardId(cardId);
+    try {
+      const res = await authFetch(token!, `/api/trello/cards/${cardId}/move`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ listId }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error((body as { error?: string }).error ?? 'Failed to move card');
+      }
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['weekly-meals'] }),
+        queryClient.invalidateQueries({ queryKey: ['meal-sources'] }),
+      ]);
+    } finally {
+      setMovingCardId(null);
+    }
+  }
+
+  async function handleRemoveFromWeekly(cardId: string, cardName: string) {
+    if (sourceLists && sourceLists.length === 1) {
+      await moveCard(cardId, sourceLists[0].id);
+    } else {
+      setRemoveModal({ cardId, cardName });
+    }
+  }
+
+  async function handleRemoveConfirm(listId: string) {
+    if (!removeModal) return;
+    const { cardId } = removeModal;
+    setRemoveModal(null);
+    await moveCard(cardId, listId);
   }
 
   async function handleCopyMealDescriptions() {
@@ -84,10 +190,6 @@ export default function DinnersPage() {
 
   async function handleCopyGroceries() {
     try {
-      // The fetch is wrapped in a Promise<Blob> passed to ClipboardItem so that
-      // navigator.clipboard.write() is called synchronously within the user gesture.
-      // Mobile browsers (Safari on iOS) revoke clipboard access after any await,
-      // so deferring the fetch inside the ClipboardItem keeps the gesture context alive.
       const blobPromise = authFetch(token!, '/api/trello/grocery-description')
         .then(async (res) => {
           if (!res.ok) {
@@ -107,8 +209,41 @@ export default function DinnersPage() {
     }
   }
 
+  async function moveToWeekly(cardId: string) {
+    setMovingCardId(cardId);
+    try {
+      const res = await authFetch(token!, `/api/trello/cards/${cardId}/move-to-weekly`, {
+        method: 'PUT',
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        console.error('Failed to add meal to this week:', (body as { error?: string }).error);
+      } else {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['weekly-meals'] }),
+          queryClient.invalidateQueries({ queryKey: ['meal-sources'] }),
+        ]);
+      }
+    } finally {
+      setMovingCardId(null);
+    }
+  }
+
+  const filteredSources = (mealSources ?? []).filter((meal) =>
+    meal.name.toLowerCase().includes(sourceSearch.toLowerCase()),
+  );
+
   return (
     <div>
+      {removeModal && sourceLists && sourceLists.length > 0 && (
+        <RemoveModal
+          cardName={removeModal.cardName}
+          sourceLists={sourceLists}
+          onConfirm={handleRemoveConfirm}
+          onCancel={() => setRemoveModal(null)}
+        />
+      )}
+
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-3xl font-bold text-gray-900">This Week's Meals</h2>
         <div className="flex items-center gap-2">
@@ -174,21 +309,43 @@ export default function DinnersPage() {
                   <LabelBadge key={label.id} label={label} />
                 ))}
               </div>
-              <a
-                href={meal.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="shrink-0 text-sm text-blue-600 hover:text-blue-800 hover:underline"
-              >
-                Open card
-              </a>
+              <div className="flex items-center gap-3 shrink-0">
+                <button
+                  onClick={() => handleRemoveFromWeekly(meal.id, meal.name)}
+                  disabled={movingCardId === meal.id}
+                  className="text-sm text-red-600 hover:text-red-800 disabled:opacity-40 transition-colors"
+                >
+                  {movingCardId === meal.id ? 'Moving…' : 'Remove'}
+                </button>
+                <a
+                  href={meal.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                >
+                  Open card
+                </a>
+              </div>
             </li>
           ))}
         </ul>
       )}
 
       <div className="mt-10">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">Meal Sources</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-2xl font-bold text-gray-900">Meal Sources</h2>
+          <span className="text-sm text-gray-500">{filteredSources.length} meals</span>
+        </div>
+
+        <div className="mb-4">
+          <input
+            type="search"
+            placeholder="Search meals…"
+            value={sourceSearch}
+            onChange={(e) => setSourceSearch(e.target.value)}
+            className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
+          />
+        </div>
 
         {isLoadingSources && (
           <div className="text-gray-500">Loading meal sources...</div>
@@ -206,9 +363,15 @@ export default function DinnersPage() {
           </div>
         )}
 
-        {mealSources && mealSources.length > 0 && (
+        {mealSources && mealSources.length > 0 && filteredSources.length === 0 && (
+          <div className="bg-white rounded-lg shadow p-6 text-gray-500">
+            No meals match your search.
+          </div>
+        )}
+
+        {filteredSources.length > 0 && (
           <ul className="space-y-3">
-            {mealSources.map((meal) => (
+            {filteredSources.map((meal) => (
               <li key={meal.id} className="bg-white rounded-lg shadow px-5 py-4 flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3 flex-wrap">
                   <span className="inline-block text-xs font-medium px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800">
@@ -219,14 +382,23 @@ export default function DinnersPage() {
                     <LabelBadge key={label.id} label={label} />
                   ))}
                 </div>
-                <a
-                  href={meal.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="shrink-0 text-sm text-blue-600 hover:text-blue-800 hover:underline"
-                >
-                  Open card
-                </a>
+                <div className="flex items-center gap-3 shrink-0">
+                  <button
+                    onClick={() => moveToWeekly(meal.id)}
+                    disabled={movingCardId === meal.id}
+                    className="text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 px-3 py-1 rounded-lg disabled:opacity-40 transition-colors"
+                  >
+                    {movingCardId === meal.id ? 'Adding…' : '+ This week'}
+                  </button>
+                  <a
+                    href={meal.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                  >
+                    Open card
+                  </a>
+                </div>
               </li>
             ))}
           </ul>
