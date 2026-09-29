@@ -16,7 +16,7 @@ router.post('/login', (req: Request, res: Response) => {
   }
 
   if (username !== validUsername || password !== validPassword) {
-    res.status(401).json({ error: 'Invalid credentials, it should be ${validUsername} and ${validPassword}' });
+    res.status(401).json({ error: 'Invalid credentials' });
     return;
   }
 

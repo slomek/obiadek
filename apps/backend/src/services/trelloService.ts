@@ -30,7 +30,8 @@ export async function fetchListCards(listId: string) {
   const url = buildTrelloUrl(`/lists/${listId}/cards`);
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error(`Trello API error: ${response.statusText}`);
+    const body = await response.text().catch(() => '');
+    throw new Error(`Trello API error: ${response.status} ${response.statusText} — ${body}`);
   }
   return response.json();
 }
