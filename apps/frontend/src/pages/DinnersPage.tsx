@@ -181,6 +181,7 @@ export default function DinnersPage() {
       const selected = (meals ?? []).filter((m) => selectedMealIds.has(m.id));
       const text = selected
         .flatMap((m) => m.desc.split('\n'))
+        .map((l) => l.toLowerCase())
         .filter((l) => l.trim() && !l.trim().startsWith('#') && !urlOnly.test(l.trim()))
         .sort((a, b) => a.localeCompare(b))
         .join('\n');
