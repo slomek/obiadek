@@ -5,6 +5,9 @@ const TRELLO_API_BASE = 'https://api.trello.com/1';
 function buildTrelloUrl(path: string): string {
   const apiKey = process.env.TRELLO_API_KEY;
   const apiToken = process.env.TRELLO_API_TOKEN;
+  if (!apiKey || !apiToken) {
+    throw new Error(`Trello env vars missing: key=${!!apiKey} token=${!!apiToken}`);
+  }
   return `${TRELLO_API_BASE}${path}?key=${apiKey}&token=${apiToken}`;
 }
 
