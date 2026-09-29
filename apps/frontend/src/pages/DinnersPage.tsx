@@ -177,8 +177,10 @@ export default function DinnersPage() {
 
   async function handleCopyMealDescriptions() {
     try {
-      const selected = (meals ?? []).filter((m) => selectedMealIds.has(m.id));
-      const text = selected.map((m) => `## ${m.name}\n${m.desc}`).join('\n\n');
+      const urlOnly = /^https?:\/\/\S+$/;
+      const selected = (meals ?? []).filter((m) => selectedMealIds.has(m.id)).sort((a, b) => a.name.localeCompare(b.name));
+      const cleanDesc = (desc: string) => desc.split('\n').filter((l) => l.trim() && !l.trim().startsWith('#') && !urlOnly.test(l.trim())).join('\n');
+      const text = selected.map((m) => `## ${m.name}\n${cleanDesc(m.desc)}`).join('\n\n');
       await navigator.clipboard.writeText(text);
       setCopyMealsStatus('copied');
       setTimeout(() => setCopyMealsStatus('idle'), 2000);

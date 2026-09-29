@@ -98,7 +98,7 @@ export async function moveCardToList(req: Request, res: Response) {
     return;
   }
   try {
-    await trelloService.moveCard(cardId, listId);
+    await trelloService.moveCard(cardId, listId, 'top');
     res.json({ ok: true });
   } catch (error) {
     console.error('Error moving card:', error);

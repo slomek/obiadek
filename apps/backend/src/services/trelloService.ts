@@ -57,14 +57,14 @@ export async function fetchCard(cardId: string) {
   return response.json();
 }
 
-export async function moveCard(cardId: string, listId: string) {
+export async function moveCard(cardId: string, listId: string, pos: 'top' | 'bottom' = 'bottom') {
   const apiKey = process.env.TRELLO_API_KEY;
   const apiToken = process.env.TRELLO_API_TOKEN;
   const url = `${TRELLO_API_BASE}/cards/${cardId}?key=${apiKey}&token=${apiToken}`;
   const response = await fetch(url, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ idList: listId }),
+    body: JSON.stringify({ idList: listId, pos }),
   });
   if (!response.ok) {
     throw new Error(`Trello API error: ${response.statusText}`);

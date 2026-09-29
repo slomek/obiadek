@@ -66,12 +66,31 @@ cp .env.example .env
 cp apps/backend/.env.example apps/backend/.env
 ```
 
-3. Update the `.env` files with your Trello credentials:
+3. Get your Trello API credentials:
+   - Go to https://trello.com/app-key
+   - Copy the **API Key** at the top of the page — put it in `TRELLO_API_KEY`
+   - Generate a token by opening this URL (replace `YOUR_API_KEY`):
+     ```
+     https://trello.com/1/authorize?expiration=never&scope=read,write&response_type=token&key=YOUR_API_KEY
+     ```
+   - Click **Allow**, then copy the token shown — put it in `TRELLO_API_TOKEN`
+
+4. Update the `.env` files with your Trello credentials:
 
 ```env
 TRELLO_API_KEY=your_actual_api_key
 TRELLO_API_TOKEN=your_actual_token
 ```
+
+### Updating the Trello token
+
+Trello tokens can expire. To refresh locally, run:
+
+```bash
+npm run trello:token
+```
+
+The script reads your current API key, opens the Trello auth URL, prompts you to paste the new token, and updates both `.env` files automatically. Afterwards, also update `TRELLO_API_TOKEN` in your Vercel environment variables and redeploy.
 
 ### 4. Run the development servers
 
