@@ -79,6 +79,79 @@ function RemoveModal({ cardName, sourceLists, onConfirm, onCancel }: RemoveModal
   );
 }
 
+interface AdhocModalProps {
+  initialValue: string;
+  isLoading: boolean;
+  onSave: (value: string) => Promise<void>;
+  onClear: () => Promise<void>;
+  onClose: () => void;
+}
+
+function AdhocModal({ initialValue, isLoading, onSave, onClear, onClose }: AdhocModalProps) {
+  const [value, setValue] = useState(initialValue);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function run(action: () => Promise<void>) {
+    setBusy(true);
+    setError(null);
+    try {
+      await action();
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Something went wrong');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
+        <h3 className="text-lg font-semibold text-gray-900 mb-1">Ad hoc items</h3>
+        <p className="text-sm text-gray-500 mb-4">
+          One item per line. They are added at the bottom of the copied grocery list.
+        </p>
+        <textarea
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          disabled={isLoading || busy}
+          rows={10}
+          autoFocus
+          placeholder={isLoading ? 'Loading…' : 'milk\neggs\ntoilet paper'}
+          className="w-full px-3 py-2 rounded-lg border border-gray-300 text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 mb-4"
+        />
+        {error && <div className="text-sm text-red-600 mb-3">{error}</div>}
+        <div className="flex gap-3 justify-between">
+          <button
+            onClick={() => run(onClear)}
+            disabled={isLoading || busy}
+            className="px-4 py-2 rounded-lg text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 disabled:opacity-50 transition-colors"
+          >
+            Clear
+          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              disabled={busy}
+              className="px-4 py-2 rounded-lg text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => run(() => onSave(value))}
+              disabled={isLoading || busy}
+              className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            >
+              {busy ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function DinnersPage() {
   const { token } = useAuth();
   const queryClient = useQueryClient();
@@ -89,6 +162,7 @@ export default function DinnersPage() {
   const [sourceSearch, setSourceSearch] = useState('');
   const [removeModal, setRemoveModal] = useState<{ cardId: string; cardName: string } | null>(null);
   const [movingCardId, setMovingCardId] = useState<string | null>(null);
+  const [adhocOpen, setAdhocOpen] = useState(false);
 
   const { data: meals, isLoading, error } = useQuery({
     queryKey: ['weekly-meals'],
@@ -126,6 +200,33 @@ export default function DinnersPage() {
     retry: 1,
     refetchOnWindowFocus: false,
   });
+
+  const { data: adhoc, isFetching: isFetchingAdhoc } = useQuery({
+    queryKey: ['adhoc-items'],
+    enabled: adhocOpen,
+    gcTime: 0,
+    queryFn: async () => {
+      const res = await authFetch(token!, '/api/trello/adhoc-items');
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error((body as { error?: string }).error ?? 'Failed to fetch ad hoc items');
+      }
+      return (await res.json() as { description: string }).description;
+    },
+  });
+
+  async function saveAdhoc(description: string) {
+    const res = await authFetch(token!, '/api/trello/adhoc-items', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ description }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error((body as { error?: string }).error ?? 'Failed to save ad hoc items');
+    }
+    queryClient.removeQueries({ queryKey: ['adhoc-items'] });
+  }
 
   function toggleMealSelection(id: string) {
     setSelectedMealIds((prev) => {
@@ -250,6 +351,16 @@ export default function DinnersPage() {
         />
       )}
 
+      {adhocOpen && (
+        <AdhocModal
+          initialValue={adhoc ?? ''}
+          isLoading={adhoc === undefined || isFetchingAdhoc}
+          onSave={saveAdhoc}
+          onClear={() => saveAdhoc('')}
+          onClose={() => setAdhocOpen(false)}
+        />
+      )}
+
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-3xl font-bold text-gray-900">This Week's Meals</h2>
         <div className="flex items-center gap-2">
@@ -279,6 +390,12 @@ export default function DinnersPage() {
             }`}
           >
             {copyStatus === 'copied' ? 'Copied!' : copyStatus === 'error' ? 'Error' : 'Copy grocery list'}
+          </button>
+          <button
+            onClick={() => setAdhocOpen(true)}
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+          >
+            Ad hoc items
           </button>
         </div>
       </div>

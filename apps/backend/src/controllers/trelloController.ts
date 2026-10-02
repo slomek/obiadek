@@ -130,9 +130,53 @@ export async function getGroceryDescription(_req: Request, res: Response) {
   }
   try {
     const card = await trelloService.fetchCard(cardId);
-    res.json({ description: (card as { desc: string }).desc });
+    let description = (card as { desc: string }).desc;
+
+    const adhocCardId = process.env.TRELLO_ADHOC_CARD_ID;
+    if (adhocCardId) {
+      const adhoc = ((await trelloService.fetchCard(adhocCardId)) as { desc: string }).desc.trim();
+      if (adhoc) {
+        description = `${description.replace(/\s+$/, '')}\n\n${adhoc}`;
+      }
+    }
+    res.json({ description });
   } catch (error) {
     console.error('Error fetching grocery card:', error);
     res.status(500).json({ error: 'Failed to fetch grocery description' });
+  }
+}
+
+export async function getAdhocItems(_req: Request, res: Response) {
+  const cardId = process.env.TRELLO_ADHOC_CARD_ID;
+  if (!cardId) {
+    res.status(500).json({ error: 'TRELLO_ADHOC_CARD_ID is not configured' });
+    return;
+  }
+  try {
+    const card = await trelloService.fetchCard(cardId);
+    res.json({ description: (card as { desc: string }).desc });
+  } catch (error) {
+    console.error('Error fetching ad hoc items:', error);
+    res.status(500).json({ error: 'Failed to fetch ad hoc items' });
+  }
+}
+
+export async function saveAdhocItems(req: Request, res: Response) {
+  const cardId = process.env.TRELLO_ADHOC_CARD_ID;
+  if (!cardId) {
+    res.status(500).json({ error: 'TRELLO_ADHOC_CARD_ID is not configured' });
+    return;
+  }
+  const { description } = req.body as { description?: unknown };
+  if (typeof description !== 'string') {
+    res.status(400).json({ error: 'description is required' });
+    return;
+  }
+  try {
+    await trelloService.updateCardDescription(cardId, description);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Error saving ad hoc items:', error);
+    res.status(500).json({ error: 'Failed to save ad hoc items' });
   }
 }
