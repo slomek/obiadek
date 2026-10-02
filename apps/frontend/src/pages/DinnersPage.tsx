@@ -82,12 +82,13 @@ function RemoveModal({ cardName, sourceLists, onConfirm, onCancel }: RemoveModal
 interface AdhocModalProps {
   initialValue: string;
   isLoading: boolean;
+  loadError: string | null;
   onSave: (value: string) => Promise<void>;
   onClear: () => Promise<void>;
   onClose: () => void;
 }
 
-function AdhocModal({ initialValue, isLoading, onSave, onClear, onClose }: AdhocModalProps) {
+function AdhocModal({ initialValue, isLoading, loadError, onSave, onClear, onClose }: AdhocModalProps) {
   const [value, setValue] = useState(initialValue);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -121,7 +122,7 @@ function AdhocModal({ initialValue, isLoading, onSave, onClear, onClose }: Adhoc
           placeholder={isLoading ? 'Loading…' : 'milk\neggs\ntoilet paper'}
           className="w-full px-3 py-2 rounded-lg border border-gray-300 text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 mb-4"
         />
-        {error && <div className="text-sm text-red-600 mb-3">{error}</div>}
+        {(error ?? loadError) && <div className="text-sm text-red-600 mb-3">{error ?? loadError}</div>}
         <div className="flex gap-3 justify-between">
           <button
             onClick={() => run(onClear)}
@@ -201,10 +202,11 @@ export default function DinnersPage() {
     refetchOnWindowFocus: false,
   });
 
-  const { data: adhoc, isFetching: isFetchingAdhoc } = useQuery({
+  const { data: adhoc, isFetching: isFetchingAdhoc, error: adhocError } = useQuery({
     queryKey: ['adhoc-items'],
     enabled: adhocOpen,
     gcTime: 0,
+    retry: 1,
     queryFn: async () => {
       const res = await authFetch(token!, '/api/trello/adhoc-items');
       if (!res.ok) {
@@ -353,7 +355,9 @@ export default function DinnersPage() {
 
       {adhocOpen && (
         <AdhocModal
+          key={adhoc !== undefined && !isFetchingAdhoc ? 'loaded' : 'loading'}
           initialValue={adhoc ?? ''}
+          loadError={adhocError ? adhocError.message : null}
           isLoading={adhoc === undefined || isFetchingAdhoc}
           onSave={saveAdhoc}
           onClear={() => saveAdhoc('')}
