@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getBoards, getBoardLists, getListCards, getWeeklyMeals, getGroceryDescription, getMealSources, getMealSourceLists, moveCardToList, moveCardToWeekly } from '../controllers/trelloController.js';
+import { getBoards, getBoardLists, getListCards, getWeeklyMeals, getGroceryDescription, getAdhocItems, saveAdhocItems, getMealSources, getMealSourceLists, moveCardToList, moveCardToWeekly } from '../controllers/trelloController.js';
 
 const router = Router();
 
@@ -8,6 +8,8 @@ router.get('/boards/:boardId/lists', getBoardLists);
 router.get('/lists/:listId/cards', getListCards);
 router.get('/weekly-meals', getWeeklyMeals);
 router.get('/grocery-description', getGroceryDescription);
+router.get('/adhoc-items', getAdhocItems);
+router.put('/adhoc-items', saveAdhocItems);
 router.get('/meal-sources', getMealSources);
 router.get('/meal-source-lists', getMealSourceLists);
 router.put('/cards/:cardId/move', moveCardToList);

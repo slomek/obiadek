@@ -70,3 +70,17 @@ export async function moveCard(cardId: string, listId: string, pos: 'top' | 'bot
     throw new Error(`Trello API error: ${response.statusText}`);
   }
 }
+
+export async function updateCardDescription(cardId: string, desc: string) {
+  const apiKey = process.env.TRELLO_API_KEY;
+  const apiToken = process.env.TRELLO_API_TOKEN;
+  const url = `${TRELLO_API_BASE}/cards/${cardId}?key=${apiKey}&token=${apiToken}`;
+  const response = await fetch(url, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ desc }),
+  });
+  if (!response.ok) {
+    throw new Error(`Trello API error: ${response.statusText}`);
+  }
+}
